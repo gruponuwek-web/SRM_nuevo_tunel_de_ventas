@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Interactivo — SRM® · EVA+</title>
+<style>
+  :root{
+    --navy:#12305c;
+    --navy-light:#1c4a8c;
+    --orange:#e8621c;
+    --paper:#ffffff;
+    --line:#b8c1cf;
+    --box:#ffffff;
+    --box-fill:#eef2f7;
+    --ink:#12305c;
+    --muted:#4a5568;
+    --green:#1f7a43;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size:16px;
+    line-height:1.5;
+    padding:40px 20px 80px;
+  }
+  header{
+    max-width:1280px; margin:0 auto 36px;
+    border-bottom:3px solid var(--navy); padding-bottom:20px;
+  }
+  header .eyebrow{
+    font-size:14px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--orange); font-weight:700; margin-bottom:8px;
+  }
+  header h1{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-size:38px; margin:0 0 8px; color:var(--navy);
+  }
+  header p{ margin:0; color:var(--muted); font-size:17px; max-width:780px; line-height:1.6; }
+
+  /* ---------- PIPELINE ROW ---------- */
+  .pipeline{
+    max-width:1280px; margin:0 auto 8px;
+    display:flex; align-items:stretch; overflow-x:auto; padding-bottom:8px;
+  }
+  .node{
+    flex:0 0 210px;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:16px 12px;
+    border:2px solid var(--line);
+    background:var(--box);
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .node:hover{ border-color:var(--navy); background:var(--box-fill); }
+  .node.selected{ border-color:var(--orange); background:#fff4ee; box-shadow:0 0 0 2px var(--orange) inset; }
+  .connector{
+    flex:0 0 26px; display:flex; align-items:center; justify-content:center;
+    color:var(--line); font-size:24px;
+  }
+  .node .step-num{
+    width:34px; height:34px; border-radius:50%;
+    background:var(--navy); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:16px; margin-bottom:8px;
+  }
+  .node.split .step-num{ background:var(--orange); }
+  .node .step-title{ font-weight:700; font-size:14.5px; color:var(--navy); line-height:1.35; margin-bottom:5px; min-height:36px; }
+  .node .step-sub{ font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .status{
+    margin-top:8px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    padding:3px 8px; border-radius:2px;
+  }
+  .status.done{ background:#dcebe0; color:var(--green); }
+  .status.pending{ background:#f0e4dc; color:var(--orange); }
+
+  .hint{
+    max-width:1280px; margin:0 auto 32px; font-size:14px; color:var(--muted); text-align:center;
+    padding-top:6px;
+  }
+
+  /* ---------- DETAIL PANEL ---------- */
+  .detail{
+    max-width:1280px; margin:0 auto; display:none;
+  }
+  .detail.active{ display:block; }
+
+  .detail-head{
+    display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px;
+    margin-bottom:20px; border-bottom:2px solid var(--navy); padding-bottom:12px;
+  }
+  .detail-head h2{ font-family:Georgia, serif; font-size:26px; color:var(--navy); margin:0; }
+  .detail-head .badge{
+    font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    padding:4px 10px; border-radius:2px;
+  }
+  .badge.done{ background:#dcebe0; color:var(--green); }
+  .badge.pending{ background:#f0e4dc; color:var(--orange); }
+
+  .pending-panel{
+    border:2px dashed var(--line); background:var(--box-fill);
+    padding:32px; text-align:center; color:var(--muted); font-size:16px; line-height:1.8;
+  }
+  .pending-panel b{ color:var(--navy); }
+
+  /* sub-tabs for landing wireframes */
+  .subtabs{ display:flex; gap:10px; margin-bottom:24px; }
+  .subtab{
+    font-family:inherit; font-size:14px; letter-spacing:.03em; text-transform:uppercase; font-weight:700;
+    padding:10px 18px; background:var(--box); border:2px solid var(--navy); color:var(--navy); cursor:pointer;
+  }
+  .subtab:hover{ background:var(--box-fill); }
+  .subtab.active{ background:var(--navy); color:#fff; }
+
+  .subview{ display:none; }
+  .subview.active{ display:block; }
+
+  .subview-note{
+    font-size:14.5px; color:var(--muted); max-width:640px; margin:0 0 18px; line-height:1.6;
+  }
+
+  .canvas{ display:flex; gap:32px; align-items:flex-start; }
+  .frame{ flex:0 0 340px; border:3px solid var(--navy); background:var(--box); }
+  .frame-bar{
+    background:var(--navy); color:#fff; font-size:12.5px; letter-spacing:.08em; text-transform:uppercase;
+    padding:8px 12px; display:flex; justify-content:space-between;
+  }
+  .frame-body{ padding:14px; display:flex; flex-direction:column; gap:12px; }
+
+  .block{
+    border:2px dashed var(--line); background:var(--box-fill); padding:14px 12px; position:relative;
+  }
+  .block .tag{
+    position:absolute; top:-10px; left:10px; background:var(--orange); color:#fff;
+    font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:3px 9px;
+  }
+  .block .label{ font-weight:700; font-size:16px; color:var(--navy); margin:8px 0 6px; }
+  .block .desc{ font-size:14.5px; color:var(--muted); line-height:1.65; }
+
+  .video-fake{
+    background:repeating-linear-gradient(45deg, #dfe6ee, #dfe6ee 8px, #eef2f7 8px, #eef2f7 16px);
+    border:2px solid var(--navy); height:150px; display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .video-fake .tag{
+    position:absolute; top:-10px; left:10px; background:var(--navy); color:#fff; font-size:10.5px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase; padding:2px 8px;
+  }
+  .play-btn{ width:44px; height:44px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; }
+  .play-btn::after{ content:""; border-style:solid; border-width:8px 0 8px 13px; border-color:transparent transparent transparent #fff; margin-left:3px; }
+  .video-caption{ position:absolute; bottom:8px; left:0; right:0; text-align:center; font-size:11.5px; color:var(--navy); font-weight:700; }
+
+  .popup-note{
+    border:2px solid var(--orange); background:#fff; padding:10px 12px; font-size:12.5px; color:var(--navy);
+    display:flex; gap:8px; align-items:flex-start;
+  }
+  .popup-note b{ color:var(--orange); }
+
+  .testimonial-row{ display:flex; gap:8px; }
+  .testimonial-row .block{ flex:1; }
+
+  .three-col{ display:flex; gap:8px; }
+  .three-col .block{ flex:1; padding:10px 8px; }
+  .three-col .label{ font-size:14px; }
+
+  .cta{
+    background:var(--orange); color:#fff; text-align:center; font-weight:700; font-size:14px;
+    letter-spacing:.06em; text-transform:uppercase; padding:12px; border:2px solid var(--navy);
+  }
+
+  .notes{ flex:1; padding-top:6px; }
+  .order-list{ list-style:none; margin:0; padding:0; counter-reset:step; }
+  .order-list li{ counter-increment:step; display:flex; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+  .order-list li::before{
+    content:counter(step); flex:0 0 26px; height:26px; border-radius:50%; background:var(--navy); color:#fff;
+    font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .order-list li div{ font-size:15.5px; line-height:1.6; }
+  .order-list li div b{ color:var(--navy); }
+  .order-list li div span{ color:var(--muted); font-size:14px; display:block; margin-top:3px; }
+
+  footer{
+    max-width:1280px; margin:48px auto 0; border-top:1px solid var(--line); padding-top:16px;
+    font-size:13px; color:var(--muted);
+  }
+
+  @media (max-width:860px){
+    .canvas{ flex-direction:column; }
+    .frame{ flex:0 0 auto; width:100%; max-width:400px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">SRM® · Túnel de Ventas Digital · Grupo Nuwek EVA+</div>
+  <h1>Pipeline Interactivo del Funnel</h1>
+  <p>Da clic en cualquier etapa para ver la landing, formulario o estructura de pitch que le corresponde.</p>
+</header>
+
+<div class="pipeline" id="pipeline">
+  <div class="node" data-step="1">
+    <div class="step-num">1</div>
+    <div class="step-title">Ads</div>
+    <div class="step-sub">3 videos</div>
+    <div class="status done">3 anuncios grabados</div>
+  </div>
+  <div class="connector">→</div>
+
+  <div class="node" data-step="2">
+    <div class="step-num">2</div>
+    <div class="step-title">Landing Page<br>Video falso</div>
+    <div class="step-sub">Filtro para ver el video · Formulario 1</div>
+    <div class="status done">2 UX definidas</div>
+  </div>
+  <div class="connector">→</div>
+
+  <div class="node" data-step="3">
+    <div class="step-num">3</div>
+    <div class="step-title">Setter</div>
+    <div class="step-sub">2 a 3 mensajes de cualificación</div>
+    <div class="status pending">Por elegir versión</div>
+  </div>
+  <div class="connector">→</div>
+
+  <div class="node" data-step="4">
+    <div class="step-num">4</div>
+    <div class="step-title">VSL<br>(Manifiesto)</div>
+    <div class="step-sub">Formulario 2</div>
+    <div class="status done">VSL grabado</div>
+  </div>
+  <div class="connector">→</div>
+
+  <div class="node" data-step="5">
+    <div class="step-num">5</div>
+    <div class="step-title">Agenda</div>
+    <div class="step-sub">Máximo 1 semana</div>
+    <div class="status done">Recordatorios definidos</div>
+  </div>
+  <div class="connector">→</div>
+
+  <div class="node split" data-step="6">
+    <div class="step-num">6</div>
+    <div class="step-title">Confirma</div>
+    <div class="step-sub">Perfil + asistencia</div>
+    <div class="status pending">Por definir</div>
+  </div>
+  <div class="connector">→</div>
+
+  <div class="node" data-step="7">
+    <div class="step-num">7</div>
+    <div class="step-title">Reunión</div>
+    <div class="step-sub">Retomar + Promesa</div>
+    <div class="status pending">Por definir</div>
+  </div>
+  <div class="connector">→</div>
+
+  <div class="node" data-step="8">
+    <div class="step-num">8</div>
+    <div class="step-title">Cotización y<br>Seguimiento</div>
+    <div class="step-sub">3 a 5 contactos · Elefante Rosa</div>
+    <div class="status pending">Por definir</div>
+  </div>
+</div>
+
+<div class="hint">↑ Da clic en una etapa para ver su detalle abajo · el split "Confirma" abre también la rama de Nutrición y Recomendaciones</div>
+
+<!-- DETAIL: STEP 1 -->
+<div class="detail" id="detail-1">
+  <div class="detail-head"><h2>Paso 1 — Ads</h2><span class="badge done">3 anuncios aceptados y grabados</span></div>
+
+  <div class="block">
+    <span class="tag">Anuncio 1.5</span>
+    <div class="label">Debatir una mala práctica de la competencia</div>
+    <div class="desc">
+      ¿De qué sirve que una agencia te entregue cientos de leads si la mayoría son leads basura? De muy poco. Llenar una hoja de cálculo con nombres, teléfonos y correos no significa generar oportunidades comerciales.<br><br>
+      El problema es que muchas agencias se concentran en conseguir el lead más barato posible. Te entregan los contactos, un reporte bonito, y te dicen "ahora le toca a ventas" — sin revisar si cumplen el perfil, si fueron atendidos a tiempo o dónde se están perdiendo.<br><br>
+      En SRM lo hacemos diferente: conectamos publicidad, páginas, automatizaciones, perfilamiento y analítica para generar volumen, pero también para identificar qué leads cumplen las condiciones acordadas antes de entregarlos al equipo comercial.<br><br>
+      Establecemos por contrato los compromisos de generación de leads perfilados. No prometemos ventas que dependen de tus vendedores, tu oferta o tu ciclo comercial — damos trazabilidad, datos reales y un proceso claro.<br><br>
+      <b>Cumplimos el 100% de nuestros contratos de generación de leads perfilados bajo las condiciones acordadas.</b><br><br>
+      <i>CTA: Haz clic en esta publicación para registrarte y ver el video.</i>
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Anuncio 2</span>
+    <div class="label">Gancho, Historia y Llamado a la Acción</div>
+    <div class="desc">
+      <b>Gancho:</b> ¿Tu empresa tiene vendedores, experiencia y un buen producto… pero las nuevas oportunidades siguen dependiendo de ti?<br><br>
+      <b>Historia:</b> Durante mucho tiempo, en SRM hicimos lo mismo que hacen muchas agencias — medir resultados por cantidad de leads. Los reportes se veían bien, pero después venían los problemas: contactos fuera de perfil, seguimiento tardío, oportunidades perdidas sin saber si la falla fue de campaña, calificación o equipo comercial. Integrar más plataformas ayudó, pero creó otro problema: demasiadas herramientas y demasiada información dispersa.<br><br>
+      <b>Epifanía:</b> Las empresas que buscan oportunidades constantes no necesitan otra campaña de anuncios — necesitan un sistema que genere leads, los perfile, rastree su recorrido y entregue información útil al equipo comercial. Primero diagnosticamos mercado, oferta y proceso comercial; después integramos campañas, páginas, automatizaciones, perfilamiento y analítica; y finalmente medimos dónde avanza o se detiene cada oportunidad. SRM no reemplaza a los vendedores ni promete cerrar negocios por ellos — genera y perfila oportunidades; el equipo comercial conduce el cierre.<br><br>
+      <b>Prueba social:</b> Cumplimos el 100% de nuestros contratos de generación de leads perfilados bajo las condiciones previamente acordadas.<br><br>
+      <i>CTA: Haz clic en esta publicación para registrarte y ver el video.</i>
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Anuncio 4</span>
+    <div class="label">Problema, Solución y Metodología diferente</div>
+    <div class="desc">
+      <b>Apertura / gancho:</b> Si diriges una empresa B2B y tus vendedores esperan que tú les traigas los clientes… esto te va a sonar muy familiar.<br><br>
+      <b>Problema:</b> Tu empresa factura bien, tienes producto comprobado y vendedores. Pero cada nuevo cliente depende de ti — de tus relaciones, tus llamadas, tu tiempo. Y cuando tú paras, el flujo de oportunidades se detiene.<br><br>
+      <b>Soluciones que no funcionaron:</b> Campañas digitales que dieron contactos sin perfil, sin intención, sin contexto. Agencias que entregaron métricas, pero los vendedores seguían sin saber a quién llamar primero. Y tu equipo siguió esperando que tú abrieras las puertas.<br><br>
+      <b>Quiebre / metodología + garantía:</b> El problema no es tu producto ni tu equipo — es que nadie había filtrado los prospectos antes de entregarlos. En SRM® diseñamos e implementamos un sistema con filtrado previo: solo llegan a tu equipo los prospectos que cumplen el perfil acordado. Y eso no es una promesa, es un compromiso contractual. Más de 250 empresas B2B ya operan con este sistema, sin depender del director para conseguir prospectos.<br><br>
+      <i>CTA: Conoce nuestra metodología. Da clic y agenda tu diagnóstico.</i>
+    </div>
+  </div>
+
+  <div class="pending-panel" style="margin-top:16px;">Los 3 anuncios ya están aceptados y grabados. Falta confirmar cuál(es) se usan de entrada en la campaña y si se rota entre los 3 o se prioriza uno como principal.</div>
+</div>
+
+<!-- DETAIL: STEP 2 (the wireframes) -->
+<div class="detail" id="detail-2">
+  <div class="detail-head"><h2>Paso 2 — Landing Page (Video Falso) · Filtro para ver el video</h2><span class="badge done">Definido</span></div>
+
+  <div class="subtabs">
+    <button class="subtab active" onclick="showSubview(2,1)">UX 1 · Narrativa Persuasiva</button>
+    <button class="subtab" onclick="showSubview(2,2)">UX 2 · Confianza Primero</button>
+  </div>
+
+  <!-- SUB UX 1 -->
+  <div class="subview active" id="sub-2-1">
+    <p class="subview-note">Construye la historia problema → solución antes de reforzar con prueba. Ideal si el video falso ya genera curiosidad fuerte.</p>
+    <div class="canvas">
+      <div class="frame">
+        <div class="frame-bar"><span>LANDING — SCROLL</span><span>UX 1</span></div>
+        <div class="frame-body">
+
+          <div class="video-fake">
+            <span class="tag">Video falso</span>
+            <div class="play-btn"></div>
+            <div class="video-caption">Thumbnail + Play → abre pop-up</div>
+          </div>
+
+          <div class="popup-note"><b>Pop-up:</b> "Deja tus datos para ver el video" — formulario corto, se dispara al hacer clic en play.</div>
+
+          <div class="block"><span class="tag">02</span><div class="label">Para quién es</div><div class="desc">Perfil del ICP — filtra visualmente desde el inicio quién debe seguir leyendo.</div></div>
+          <div class="block"><span class="tag">03</span><div class="label">Problema / Dolor</div><div class="desc">Agitación breve del dolor específico del ICP.</div></div>
+
+          <div class="block">
+            <span class="tag">04</span>
+            <div class="label">Metodología en 3 pilares</div>
+            <div class="three-col">
+              <div class="block"><div class="label">Pilar 1</div></div>
+              <div class="block"><div class="label">Pilar 2</div></div>
+              <div class="block"><div class="label">Pilar 3</div></div>
+            </div>
+          </div>
+
+          <div class="block"><span class="tag">05</span><div class="label">Beneficios</div><div class="desc">Resultado tangible de aplicar la metodología. Bullets cortos.</div></div>
+          <div class="block"><span class="tag">06</span><div class="label">Testimonio</div><div class="desc">Prueba social — cierra el argumento narrativo.</div></div>
+
+          <div class="cta">Ver el video ↓</div>
+
+        </div>
+      </div>
+
+      <div class="notes">
+        <ul class="order-list">
+          <li><div><b>Video falso + pop-up</b><span>Gancho inicial. El clic en play es la única acción posible arriba del fold.</span></div></li>
+          <li><div><b>Para quién es</b><span>Filtro temprano del ICP — evita que sigan leyendo quienes no aplican.</span></div></li>
+          <li><div><b>Problema</b><span>Agitación breve, conecta con el dolor real del prospecto.</span></div></li>
+          <li><div><b>Metodología (3 pilares)</b><span>El "cómo" —resuelve el problema planteado arriba.</span></div></li>
+          <li><div><b>Beneficios</b><span>Traduce la metodología en resultado tangible.</span></div></li>
+          <li><div><b>Testimonio</b><span>Prueba social al final, cierra la narrativa antes del CTA.</span></div></li>
+          <li><div><b>CTA final</b><span>Repite la acción de abrir el pop-up.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB UX 2 -->
+  <div class="subview" id="sub-2-2">
+    <p class="subview-note">Reduce fricción apoyándose en prueba social antes de explicar. Útil si el tráfico de Meta ya viene medianamente calificado.</p>
+    <div class="canvas">
+      <div class="frame">
+        <div class="frame-bar"><span>LANDING — SCROLL</span><span>UX 2</span></div>
+        <div class="frame-body">
+
+          <div class="block">
+            <span class="tag">01</span>
+            <div class="label">Hook</div>
+            <div class="desc">Frase corta de impacto arriba del video — la promesa o curiosidad que detiene el scroll antes de dar play.</div>
+          </div>
+
+          <div class="video-fake">
+            <span class="tag">Video falso</span>
+            <div class="play-btn"></div>
+            <div class="video-caption">Thumbnail + Play → abre pop-up</div>
+          </div>
+
+          <div class="popup-note"><b>Pop-up:</b> "Deja tus datos para ver el video" — formulario corto, se dispara al hacer clic en play.</div>
+
+          <div class="testimonial-row">
+            <div class="block"><span class="tag">03</span><div class="label">Testimonio</div><div class="desc">Validación inmediata: "esto ya funcionó".</div></div>
+          </div>
+
+          <div class="block"><span class="tag">04</span><div class="label">Para quién es / para quién NO</div><div class="desc">Filtro rápido en dos columnas — evita leads basura.</div></div>
+          <div class="block"><span class="tag">05</span><div class="label">Beneficios</div><div class="desc">Bullets cortos y escaneables.</div></div>
+
+          <div class="block">
+            <span class="tag">06</span>
+            <div class="label">Metodología en 3 pilares</div>
+            <div class="three-col">
+              <div class="block"><div class="label">Pilar 1</div></div>
+              <div class="block"><div class="label">Pilar 2</div></div>
+              <div class="block"><div class="label">Pilar 3</div></div>
+            </div>
+          </div>
+
+          <div class="block"><span class="tag">07</span><div class="label">Problema</div><div class="desc">Mención breve, casi como recordatorio — no es el eje central.</div></div>
+
+          <div class="cta">Ver el video ↓</div>
+          <div class="block" style="text-align:center;"><div class="desc">Micro-testimonio adicional junto al CTA final</div></div>
+
+        </div>
+      </div>
+
+      <div class="notes">
+        <ul class="order-list">
+          <li><div><b>Hook</b><span>Frase de impacto arriba del video — detiene el scroll antes del play.</span></div></li>
+          <li><div><b>Video falso + pop-up</b><span>Mismo gancho inicial que UX 1.</span></div></li>
+          <li><div><b>Testimonio(s)</b><span>Prueba social inmediata, antes de cualquier explicación.</span></div></li>
+          <li><div><b>Para quién es / no es</b><span>Filtro rápido en formato comparativo, dos columnas.</span></div></li>
+          <li><div><b>Beneficios</b><span>Bullets escaneables — se leen antes de profundizar.</span></div></li>
+          <li><div><b>Metodología (3 pilares)</b><span>El respaldo del "por qué sí funciona".</span></div></li>
+          <li><div><b>Problema</b><span>Se menciona breve, casi como recordatorio final.</span></div></li>
+          <li><div><b>CTA final + micro-testimonio</b><span>Refuerzo de confianza justo antes de la acción.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:24px;">
+    <span class="tag">Formulario 1</span>
+    <div class="label">Campos a solicitar (pop-up del video falso)</div>
+    <div class="desc">Nombre · Teléfono · Correo · Industria B2B · Ciclo de venta</div>
+  </div>
+</div>
+
+<!-- DETAIL: STEP 3 -->
+<div class="detail" id="detail-3">
+  <div class="detail-head"><h2>Paso 3 — Setter</h2><span class="badge pending">Por elegir versión final</span></div>
+  <div class="block">
+    <span class="tag">Setter</span>
+    <div class="label">2 a 3 mensajes de cualificación</div>
+    <div class="desc">Necesidades · Dolor · Frustración · Urgencia · Decisor / Dependencia de empresa</div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Apertura</span>
+    <div class="label">Mensaje 1 — Romper el hielo</div>
+    <div class="desc">"Hola [Nombre], soy [Setter] de SRM 👋 Vi que dejaste tus datos para conocer más sobre nuestro sistema de generación de prospectos. Antes de mandarte la info, quiero conocer un poco tu contexto para que lo que te comparta sea justo lo que necesitas, ¿te parece?"</div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Necesidades</span>
+    <div class="label">3 opciones</div>
+    <div class="desc">
+      A) "Platícame rápido, ¿qué te llevó a buscar apoyo con generación de prospectos en este momento?"<br><br>
+      B) "¿Qué estás buscando lograr con esto — más volumen de leads, mejor calidad, o ambas?"<br><br>
+      C) "Si esto funciona como esperas, ¿qué cambiaría en tu operación comercial en los próximos meses?"
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Dolor</span>
+    <div class="label">3 opciones</div>
+    <div class="desc">
+      A) "¿Qué es lo que más te está costando hoy con tu proceso comercial? ¿Falta de leads, seguimiento, o que no cierran?"<br><br>
+      B) "¿Dónde sientes que se te está yendo el dinero ahorita — en campañas que no jalan, o en leads que no cierran?"<br><br>
+      C) "¿Qué parte de conseguir clientes nuevos te quita más tiempo o energía hoy?"
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Frustración</span>
+    <div class="label">3 opciones</div>
+    <div class="desc">
+      A) "¿Ya intentaste algo antes (agencia, freelancer, tu propio equipo) para resolverlo? ¿Cómo te fue?"<br><br>
+      B) "¿Qué es lo que más te ha decepcionado de otras soluciones o agencias que ya probaste?"<br><br>
+      C) "Del 1 al 10, ¿qué tan cansado estás de invertir en marketing sin ver resultados claros?"
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Urgencia</span>
+    <div class="label">3 opciones</div>
+    <div class="desc">
+      A) "¿Para cuándo te gustaría empezar a ver resultados? ¿Es algo urgente o vas explorando opciones?"<br><br>
+      B) "¿Qué tan prioritario es esto para ti ahorita mismo — es un 'lo necesito ya' o un 'lo estoy evaluando para el próximo trimestre'?"<br><br>
+      C) "¿Hay algo puntual empujando esto ahora (meta de facturación, presión de junta, temporada) o es una mejora continua?"
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Decisor / Dependencia de empresa</span>
+    <div class="label">3 opciones</div>
+    <div class="desc">
+      A) "¿Tú tomas la decisión de avanzar con un proveedor así, o hay alguien más del equipo que también debería estar en la llamada?"<br><br>
+      B) "¿Cómo se toman este tipo de decisiones en tu empresa — la traes tú solo, o pasa por más gente?"<br><br>
+      C) "Para que la llamada sea productiva, ¿quién más del equipo debería estar presente además de ti?"
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Cierre</span>
+    <div class="label">Mensaje final — Puente a Agenda</div>
+    <div class="desc">"Perfecto [Nombre], con esto ya tengo claro tu panorama. Justo para casos como el tuyo es que armamos el sistema — te comparto el link para agendar y platicarlo a detalle con el equipo, ¿qué día te acomoda mejor esta semana?"</div>
+  </div>
+
+  <div class="pending-panel" style="margin-top:16px;">Falta validar tono con Javier/Tania y ajustar longitud de mensajes según el canal (WhatsApp vs formulario dentro de GHL).</div>
+</div>
+
+<!-- DETAIL: STEP 4 -->
+<div class="detail" id="detail-4">
+  <div class="detail-head"><h2>Paso 4 — VSL (Manifiesto)</h2><span class="badge done">Grabado</span></div>
+
+  <div class="block">
+    <span class="tag">Mini-VSL TOFU</span>
+    <div class="label">"Leads sin calidad" — ~3 min</div>
+    <div class="desc">
+      ¿De qué sirve que una agencia de marketing te entregue cientos de leads si tu equipo comercial termina descartando casi todos? De muy poco. Una lista llena de nombres, teléfonos y correos no necesariamente representa nuevas oportunidades comerciales.<br><br>
+      Muchas agencias se concentran únicamente en conseguir el mayor volumen posible al menor costo. Entregan un reporte que dice "generamos 200 leads este mes" — hasta que tus vendedores empiezan a llamar y descubren contactos que no responden, que solo buscaban información, que no tienen el perfil, o que ni recuerdan haber dejado sus datos. Marketing dice que cumplió, ventas dice que los leads no sirven, y tú terminas en medio intentando descubrir dónde está la falla.<br><br>
+      <b>El verdadero problema:</b> generar un formulario no es lo mismo que generar una oportunidad comercial. Entregar contactos sin contexto tampoco es estrategia de crecimiento.<br><br>
+      <b>Metodología:</b> definir con claridad qué tipo de empresa o prospecto se quiere atraer → crear campañas y mensajes para ese perfil → registrar información, contactar, aplicar un primer filtro y determinar quién cumple las condiciones acordadas → entregar esas oportunidades al equipo comercial con suficiente contexto.<br><br>
+      En SRM implementamos un sistema que conecta publicidad digital, páginas de conversión, automatizaciones, comunicación multicanal, preventa, perfilamiento y analítica — permite observar qué ocurre desde que alguien ve un anuncio hasta que llega al equipo comercial, e identificar en qué punto se detiene una oportunidad si eso pasa.<br><br>
+      <b>Garantía contractual:</b> establecemos por contrato los compromisos de generación de leads y las condiciones que debe cumplir el servicio. No prometemos ventas que no controlamos — el cierre también depende de la oferta, los vendedores, el seguimiento y el ciclo comercial de cada empresa.<br><br>
+      <b>Prueba:</b> este sistema nos ha permitido cumplir el 100% de nuestros contratos de generación de leads bajo las condiciones previamente acordadas. Eso no significa que todas las empresas obtendrán los mismos resultados — significa que trabajamos con un proceso medible, responsabilidades claras y compromisos definidos.<br><br>
+      <b>Perfil / CTA:</b> si tu empresa tiene una oferta comprobada, un equipo comercial y quiere dejar de depender únicamente de la cartera, las recomendaciones o los contactos del director — agenda una sesión para conocer a detalle tus necesidades y construir un canal de generación de oportunidades más predecible, medible y rastreable.
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Formulario 2</span>
+    <div class="label">Campos con opciones</div>
+    <div class="desc">
+      <b>Ticket de venta</b><br>
+      · Hasta 10k<br>
+      · Hasta 100k<br>
+      · Empiezan en 100k<br><br>
+      <b>Equipo de venta</b><br>
+      · Soy yo contra el mundo<br>
+      · Lo estoy armando<br>
+      · Tengo equipo de venta<br><br>
+      <b>Urgencia de resultados</b><br>
+      · Me urgen ventas<br>
+      · El negocio es estable<br>
+      · El negocio va en crecimiento
+    </div>
+  </div>
+
+  <div class="block" style="margin-top:24px;">
+    <span class="tag">UX</span>
+    <div class="label">Landing VSL / Manifiesto — estructura simple</div>
+    <div class="desc">A diferencia de la Landing 1, aquí el lead ya demostró interés al pasar el primer filtro — el objetivo es reducir fricción, no volver a convencer desde cero. Por eso el formulario queda siempre visible en vez de esperar hasta el final.</div>
+  </div>
+
+  <div class="canvas" style="margin-top:16px;">
+    <div class="frame">
+      <div class="frame-bar"><span>LANDING — SCROLL</span><span>VSL</span></div>
+      <div class="frame-body">
+
+        <div class="block">
+          <span class="tag">01</span>
+          <div class="label">Hook / Promesa</div>
+          <div class="desc">Una sola línea de impacto arriba del video. Ej. Pitch 1: "¿De qué sirve que te entreguen cientos de leads si tu equipo termina descartando casi todos?"</div>
+        </div>
+
+        <div class="video-fake">
+          <span class="tag">Video real</span>
+          <div class="play-btn"></div>
+          <div class="video-caption">Mini-VSL TOFU — reproduce directo, sin pop-up</div>
+        </div>
+
+        <div class="block" style="border-color:var(--orange);">
+          <span class="tag" style="background:var(--orange);">Sticky</span>
+          <div class="label">Formulario 2 — siempre visible</div>
+          <div class="desc">Ticket de venta · Equipo de venta · Urgencia de resultados. Fijo al lado o justo debajo del video — no hasta el fondo de la página.</div>
+        </div>
+
+        <div class="block">
+          <span class="tag">03</span>
+          <div class="label">Testimonios</div>
+          <div class="desc">Uno o dos, debajo del formulario, como refuerzo final antes de que complete sus datos.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="notes">
+      <ul class="order-list">
+        <li><div><b>Hook / Promesa</b><span>Reafirma en una línea por qué vale la pena ver el video — sin repetir el argumento completo del Ads.</span></div></li>
+        <li><div><b>VSL</b><span>El video real se reproduce directo, sin fricción de pop-up — ya pasaron ese filtro en la Landing 1.</span></div></li>
+        <li><div><b>Formulario 2 siempre visible</b><span>Reduce fricción: el lead puede dejar sus datos en cualquier momento del scroll, no solo al final.</span></div></li>
+        <li><div><b>Testimonios</b><span>Refuerzo breve, no argumento central — el video ya hizo el trabajo de convencer.</span></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="pending-panel" style="margin-top:16px;">Falta copy final del Hook (elegir entre los 3 pitches o combinarlos) y confirmar qué testimonios específicos de SRM se usan aquí.</div>
+</div>
+
+<!-- DETAIL: STEP 5 -->
+<div class="detail" id="detail-5">
+  <div class="detail-head"><h2>Paso 5 — Agenda</h2><span class="badge done">Estructuras definidas</span></div>
+  <div class="pending-panel">Máximo 1 semana entre el filtro y la reunión. Alimenta al lead con <b>recordatorios</b> mientras espera la fecha — y también recibe de vuelta a los leads que pasaron por Nutrición para reintentar confirmación.</div>
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Recordatorio Positivo</span>
+    <div class="label">Estructura</div>
+    <div class="desc">Reconexión ligera → Recordar el valor que ya vio → Invitación suave a confirmar.<br><br>No reintroduce el problema — asume que el lead ya está convencido y solo necesita un empujón amable. Tono cercano, sin presión, casi "seguimos en pie ¿verdad?". Formato: texto corto (2-3 líneas), sin necesidad de video — es el de menor fricción.</div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Recordatorio Negativo / Dolor</span>
+    <div class="label">Estructura</div>
+    <div class="desc">Reactivar el dolor específico que mencionó en el Setter → Costo de seguir sin resolverlo → CTA directo.<br><br>Conviene personalizar con lo que dijo en las 5 preguntas de cualificación (ej. si dijo "me urgen ventas", recordárselo). Tono directo pero no alarmista, sin vendehumo ni presión artificial. Formato: texto, idealmente con un dato o cifra concreta.</div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Recordatorio Lógico</span>
+    <div class="label">Estructura</div>
+    <div class="desc">Argumento racional → Garantía contractual como diferenciador → Bajo riesgo de agendar.<br><br>El que más se apoya en la marca SRM: "no es una promesa, es un compromiso contractual". Tono informativo, casi resolviendo una objeción sin que se haya dicho en voz alta. Formato: texto con un dato duro (ej. "250 empresas", "100% de contratos cumplidos").</div>
+  </div>
+
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Recordatorio Testimonios</span>
+    <div class="label">Estructura · ¡Elefante Rosa!</div>
+    <div class="desc">Nombrar directamente la duda que probablemente tiene el lead (el "elefante en el cuarto") → Resolverla con prueba social → CTA final.<br><br>La técnica consiste en no evadir la objeción implícita ("seguro piensa que esto no es para él" o "cree que no tiene tiempo") sino nombrarla sin rodeos y resolverla con un caso real. Tono valiente, casi conversacional: "Sé que tal vez estás pensando X... y por eso te comparto esto." Formato ideal: video corto (15-20 seg) si es posible — el testimonio en voz/imagen pega más fuerte que en texto.</div>
+  </div>
+</div>
+
+<!-- DETAIL: STEP 6 -->
+<div class="detail" id="detail-6">
+  <div class="detail-head"><h2>Paso 6 — Confirma</h2><span class="badge pending">Pendiente</span></div>
+  <div class="pending-panel">El Setter valida si <b>de verdad cumple el perfil</b> y confirma su <b>asistencia</b> a la cita.</div>
+  <div class="canvas" style="margin-top:16px; gap:20px;">
+    <div class="block" style="flex:1;">
+      <span class="tag" style="background:var(--green);">SÍ confirma</span>
+      <div class="label">Pasa a Reunión</div>
+      <div class="desc">Cumple perfil y confirma asistencia → avanza al Paso 7 con la presentación completa.</div>
+    </div>
+    <div class="block" style="flex:1;">
+      <span class="tag">NO confirma</span>
+      <div class="label">Nutrición → reintento en Agenda</div>
+      <div class="desc">Entra a la secuencia de recordatorios y regresa a Agenda para intentar confirmar de nuevo.</div>
+    </div>
+  </div>
+  <div class="block" style="margin-top:16px; border-color:var(--orange);">
+    <span class="tag">Fallback final</span>
+    <div class="label">Solo Recomendaciones</div>
+    <div class="desc">Si finalmente no cumple perfil o nunca confirma asistencia, nos brincamos la presentación: se le da solo un mensaje de recomendaciones (sin pasar por Reunión).</div>
+  </div>
+</div>
+
+<!-- DETAIL: STEP 7 -->
+<div class="detail" id="detail-7">
+  <div class="detail-head"><h2>Paso 7 — Reunión</h2><span class="badge pending">Pendiente</span></div>
+  <div class="canvas" style="gap:20px;">
+    <div class="block" style="flex:1;">
+      <span class="tag">Retomar</span>
+      <div class="label">Datos duros del prospecto</div>
+      <div class="desc">Producto + Línea de negocio + Facturación · Zonas · Rentabilidad · CRM · Equipo de ventas (estructura y resultados) · Clientes vs expectativa de nuevos · Urgencia · Diferencia ahora <b>(PUENTE)</b></div>
+    </div>
+    <div class="block" style="flex:1;">
+      <span class="tag">Promesa</span>
+      <div class="label">Framework de venta</div>
+      <div class="desc">Quién sí / Quién no · Expectativa / Testimonios · Storytelling · Método / Diferenciadores · Objeciones / Testimonios · Primer paso</div>
+    </div>
+  </div>
+  <div class="block" style="margin-top:16px;">
+    <span class="tag">Contexto</span>
+    <div class="label">Temas de apoyo durante la reunión</div>
+    <div class="desc">Problemas comunes · Etapas · Proceso de generación de demanda · Diagnóstico · KPI's · Comportamiento habitual de la inversión</div>
+  </div>
+  <div class="pending-panel" style="margin-top:16px;">Falta convertir esta estructura en el guion palabra por palabra de la reunión (script de ventas).</div>
+</div>
+
+<!-- DETAIL: STEP 8 -->
+<div class="detail" id="detail-8">
+  <div class="detail-head"><h2>Paso 8 — Cotización y Seguimiento</h2><span class="badge pending">Pendiente</span></div>
+  <div class="block">
+    <span class="tag">Seguimiento</span>
+    <div class="label">Cadencia</div>
+    <div class="desc">3 a 5 llamadas / mensajes, apoyados con la técnica ¡Elefante Rosa!</div>
+  </div>
+  <div class="pending-panel" style="margin-top:16px;">Falta definir el copy de cada mensaje de seguimiento y en qué punto se considera lead perdido.</div>
+</div>
+
+<footer>
+  Pipeline interactivo de trabajo — iremos llenando cada paso conforme lo definamos juntos. Uso interno EVA+ / SRM®.
+</footer>
+
+<script>
+  function selectStep(step){
+    document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));
+    document.querySelector('.node[data-step="'+step+'"]').classList.add('selected');
+    document.querySelectorAll('.detail').forEach(d=>d.classList.remove('active'));
+    document.getElementById('detail-'+step).classList.add('active');
+    document.getElementById('detail-'+step).scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  document.querySelectorAll('.node').forEach(node=>{
+    node.addEventListener('click', ()=> selectStep(node.getAttribute('data-step')));
+  });
+
+  function showSubview(step, n){
+    const parent = document.getElementById('detail-'+step);
+    parent.querySelectorAll('.subview').forEach(v=>v.classList.remove('active'));
+    parent.querySelectorAll('.subtab').forEach(t=>t.classList.remove('active'));
+    parent.querySelector('#sub-'+step+'-'+n).classList.add('active');
+    parent.querySelectorAll('.subtab')[n-1].classList.add('active');
+  }
+
+  // open step 2 by default so there's something to see on load
+  selectStep(1);
+</script>
+
+</body>
+</html>
