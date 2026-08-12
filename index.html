@@ -694,12 +694,14 @@
 </footer>
 
 <script>
-  function selectStep(step){
+  function selectStep(step, scroll){
     document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));
     document.querySelector('.node[data-step="'+step+'"]').classList.add('selected');
     document.querySelectorAll('.detail').forEach(d=>d.classList.remove('active'));
     document.getElementById('detail-'+step).classList.add('active');
-    document.getElementById('detail-'+step).scrollIntoView({behavior:'smooth', block:'start'});
+    if(scroll !== false){
+      document.getElementById('detail-'+step).scrollIntoView({behavior:'smooth', block:'start'});
+    }
   }
   document.querySelectorAll('.node').forEach(node=>{
     node.addEventListener('click', ()=> selectStep(node.getAttribute('data-step')));
@@ -714,7 +716,7 @@
   }
 
   // open step 2 by default so there's something to see on load
-  selectStep(1);
+  selectStep(1, false);
 </script>
 
 </body>
